@@ -1,0 +1,6 @@
+order_id,product,price,quantity,region
+1,Laptop,800,1,North
+2,Mouse,20,3,South
+3,Keyboard,50,,East
+4,Monitor,300,2,West
+5,Laptop,800,1,North
