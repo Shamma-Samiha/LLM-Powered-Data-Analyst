@@ -10,6 +10,11 @@ automatically analyzes the data, and generates human-readable insights using a l
 - FastAPI backend
 - Fully free & runs locally
 
+## Website View
+
+![Website View 1](assets/website_view_1.png)
+![Website View 2](assets/website_view_2.png)
+
 ## Tech Stack
 - Python
 - FastAPI
