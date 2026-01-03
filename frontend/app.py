@@ -4,6 +4,7 @@ import streamlit as st
 import requests
 import subprocess
 import pandas as pd
+import numpy as np
 from io import BytesIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
@@ -19,6 +20,9 @@ if "dataset_context" not in st.session_state:
 
 if "df" not in st.session_state:
     st.session_state.df = None
+
+if "selected_chart_type" not in st.session_state:
+    st.session_state.selected_chart_type = "📈 Line Chart"
 
 # --------------------------------------------------
 # Page config
@@ -154,6 +158,57 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
         color: #ffffff !important;
+    }
+    
+    /* Luminous chart buttons */
+    .chart-button {
+        background: rgba(45, 52, 54, 0.8) !important;
+        border: 2px solid rgba(76, 175, 80, 0.3) !important;
+        border-radius: 10px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        color: #b0b0b0 !important;
+        transition: all 0.3s ease !important;
+        cursor: pointer !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    .chart-button:hover {
+        background: rgba(76, 175, 80, 0.2) !important;
+        border-color: rgba(76, 175, 80, 0.6) !important;
+        color: #e0e0e0 !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.5) !important;
+    }
+    
+    .chart-button.active {
+        background: linear-gradient(135deg, rgba(76, 175, 80, 0.3) 0%, rgba(76, 175, 80, 0.15) 100%) !important;
+        border: 2px solid rgba(76, 175, 80, 0.8) !important;
+        color: #4CAF50 !important;
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.6), 0 4px 15px rgba(76, 175, 80, 0.4) !important;
+        text-shadow: 0 0 10px rgba(76, 175, 80, 0.8) !important;
+    }
+    
+    .chart-buttons-container {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: nowrap;
+        margin: 1.5rem 0;
+        padding: 1rem;
+        background: rgba(45, 52, 54, 0.5);
+        border-radius: 12px;
+        border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+    
+    .chart-buttons-container [data-testid="column"] {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        width: 0 !important;
+    }
+    
+    .chart-buttons-container [data-testid="column"] > div {
+        width: 100% !important;
     }
     
     /* File uploader styling */
@@ -435,8 +490,12 @@ if uploaded_file:
         if eda_response.status_code == 200:
             eda = eda_response.json()
             
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("📌 Dataset Overview")
+            st.markdown("""
+            <div class="card">
+                <h2 style="color: #e0e0e0; font-size: 1.8rem; font-weight: 700; margin: 0 0 1rem 0; padding: 0;">
+                    📌 Dataset Overview
+                </h2>
+            """, unsafe_allow_html=True)
             
             overview_col1, overview_col2 = st.columns(2)
             with overview_col1:
@@ -450,16 +509,24 @@ if uploaded_file:
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.subheader("🧩 Missing Values")
+                st.markdown("""
+                <div class="card">
+                    <h2 style="color: #e0e0e0; font-size: 1.8rem; font-weight: 700; margin: 0 0 1rem 0; padding: 0;">
+                        🧩 Missing Values
+                    </h2>
+                """, unsafe_allow_html=True)
                 missing_df = pd.DataFrame(list(eda["missing_values"].items()), 
                                          columns=["Column", "Missing Count"])
                 st.dataframe(missing_df, use_container_width=True, hide_index=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             
             with col2:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.subheader("🧾 Data Types")
+                st.markdown("""
+                <div class="card">
+                    <h2 style="color: #e0e0e0; font-size: 1.8rem; font-weight: 700; margin: 0 0 1rem 0; padding: 0;">
+                        🧾 Data Types
+                    </h2>
+                """, unsafe_allow_html=True)
                 types_df = pd.DataFrame(list(eda["data_types"].items()), 
                                        columns=["Column", "Data Type"])
                 st.dataframe(types_df, use_container_width=True, hide_index=True)
@@ -469,8 +536,12 @@ if uploaded_file:
             llm_data = llm_response.json()
             st.session_state.dataset_context = llm_data["llm_explanation"]
 
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.subheader("🤖 AI-Powered Explanation")
+            st.markdown(f"""
+            <div class="card">
+                <h2 style="color: #e0e0e0; font-size: 1.8rem; font-weight: 700; margin: 0 0 1rem 0; padding: 0;">
+                    🤖 AI-Powered Explanation
+                </h2>
+            """, unsafe_allow_html=True)
             st.markdown(f"""
             <div style="background: rgba(76, 175, 80, 0.15); padding: 1.5rem; 
                         border-radius: 10px; border-left: 4px solid #4CAF50;">
@@ -495,55 +566,486 @@ if uploaded_file:
 # --------------------------------------------------
 if st.session_state.df is not None:
     st.markdown("---")
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📊 Data Visualizations")
     st.markdown("""
-    <p style="color: #b0b0b0; margin-bottom: 1rem;">
-        Explore your data through interactive charts and visualizations
-    </p>
+    <div class="card">
+        <h2 style="color: #e0e0e0; font-size: 1.8rem; font-weight: 700; margin: 0 0 1rem 0; padding: 0;">
+            📊 Data Visualizations
+        </h2>
+        <p style="color: #b0b0b0; font-size: 1rem; margin: 0 0 1.5rem 0;">
+            Explore your data through interactive charts and visualizations
+        </p>
     """, unsafe_allow_html=True)
 
     df = st.session_state.df
     numeric_cols = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
+    categorical_cols = df.select_dtypes(include=["object", "category", "string"]).columns.tolist()
+    all_cols = df.columns.tolist()
 
     if numeric_cols:
-        selected_col = st.selectbox("📈 Select a numeric column to visualize", numeric_cols)
+        # Variable selection section
+        st.markdown("""
+        <div style="background: rgba(45, 52, 54, 0.5); padding: 1rem; border-radius: 10px; margin-bottom: 1.5rem; border: 1px solid rgba(76, 175, 80, 0.2);">
+            <h3 style="color: #e0e0e0; font-size: 1.1rem; margin: 0 0 1rem 0;">📊 Variable Selection</h3>
+        """, unsafe_allow_html=True)
         
-        # Charts in tabs for better organization
-        tab1, tab2, tab3, tab4 = st.tabs(["📊 Bar Chart", "📈 Line Chart", "🥧 Pie Chart", "🔥 Correlation"])
-
-        with tab1:
-            st.markdown("### Bar Chart Visualization")
-            st.bar_chart(df[selected_col], height=400)
-
-        with tab2:
-            st.markdown("### Line Chart Visualization")
-            st.line_chart(df[selected_col], height=400)
-
-        with tab3:
-            st.markdown("### Distribution Pie Chart")
-            pie_data = df[selected_col].value_counts().head(10)
-            fig, ax = plt.subplots(figsize=(10, 6), facecolor='#2d3436')
-            ax.set_facecolor('#2d3436')
-            pie_data.plot.pie(
-                autopct="%1.1f%%",
-                ylabel="",
-                title=f"Distribution of {selected_col}",
-                ax=ax,
-                colors=plt.cm.Set3.colors,
-                textprops={'color': '#e0e0e0'}
-            )
-            ax.title.set_color('#e0e0e0')
-            st.pyplot(fig)
-
-        with tab4:
-            if len(numeric_cols) > 1:
-                st.markdown("### Correlation Heatmap")
-                corr = df[numeric_cols].corr()
-                st.dataframe(corr.style.background_gradient(cmap="coolwarm", axis=None), 
-                           use_container_width=True)
+        filter_col1, filter_col2 = st.columns(2)
+        
+        with filter_col1:
+            selected_col = st.selectbox("📈 Primary Variable (Y-axis)", numeric_cols, key="primary_var")
+        
+        # Initialize variables
+        secondary_col = None
+        selected_vars = [selected_col]
+        multi_select = False
+        
+        with filter_col2:
+            if st.session_state.selected_chart_type in ["🔍 Scatter Plot"]:
+                if len(numeric_cols) > 1:
+                    secondary_col = st.selectbox("📈 Secondary Variable (X-axis)", 
+                                                 [col for col in numeric_cols if col != selected_col], 
+                                                 key="secondary_var")
+            elif st.session_state.selected_chart_type in ["📈 Line Chart", "📊 Area Chart"]:
+                multi_select = st.checkbox("📊 Show Multiple Variables", key="multi_var")
+                if multi_select and len(numeric_cols) > 1:
+                    selected_vars = st.multiselect("Select Variables", 
+                                                  numeric_cols,
+                                                  default=[selected_col],
+                                                  key="multi_vars")
+                    if not selected_vars:  # Ensure at least one variable is selected
+                        selected_vars = [selected_col]
+                else:
+                    selected_vars = [selected_col]
+        
+        # Grouping option for categorical data
+        if categorical_cols and st.session_state.selected_chart_type in ["📈 Line Chart", "📊 Area Chart", "🥧 Pie Chart"]:
+            group_by = st.selectbox("📂 Group By (Optional)", ["None"] + categorical_cols, key="group_by")
+            if group_by == "None":
+                group_by = None
+        else:
+            group_by = None
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Chart type selection with luminous buttons
+        chart_types = [
+            "📈 Line Chart", "📊 Area Chart", "🥧 Pie Chart",
+            "📉 Histogram", "📊 Box Plot", "🔍 Scatter Plot", "🔥 Correlation"
+        ]
+        
+        st.markdown("""
+        <div class="chart-buttons-container">
+        """, unsafe_allow_html=True)
+        
+        cols = st.columns(len(chart_types))
+        for idx, chart_type in enumerate(chart_types):
+            with cols[idx]:
+                is_active = st.session_state.selected_chart_type == chart_type
+                button_style = "active-chart-btn" if is_active else ""
+                if st.button(chart_type, key=f"chart_btn_{idx}", use_container_width=True):
+                    st.session_state.selected_chart_type = chart_type
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Add custom CSS for luminous button effects
+        active_chart = st.session_state.selected_chart_type
+        active_idx = chart_types.index(active_chart) if active_chart in chart_types else 0
+        st.markdown(f"""
+        <style>
+        /* Target Streamlit column structure for uniform button sizes */
+        .chart-buttons-container [data-testid="column"] {{
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            width: 0 !important;
+        }}
+        
+        .chart-buttons-container [data-testid="column"] > div {{
+            width: 100% !important;
+        }}
+        
+        /* Base styling for all chart buttons - uniform size */
+        .chart-buttons-container .stButton {{
+            width: 100% !important;
+            min-width: 0 !important;
+        }}
+        
+        .chart-buttons-container .stButton > button {{
+            background: rgba(45, 52, 54, 0.8) !important;
+            border: 2px solid rgba(76, 175, 80, 0.3) !important;
+            border-radius: 10px !important;
+            color: #b0b0b0 !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+            font-weight: 600 !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            height: 50px !important;
+            padding: 0.5rem 0.5rem !important;
+            font-size: 0.85rem !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
+        }}
+        
+        .chart-buttons-container .stButton > button:hover {{
+            background: rgba(76, 175, 80, 0.2) !important;
+            border-color: rgba(76, 175, 80, 0.6) !important;
+            color: #e0e0e0 !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.5) !important;
+        }}
+        
+        /* Active button - luminous effect using nth-of-type */
+        .chart-buttons-container [data-testid="column"]:nth-of-type({active_idx + 1}) .stButton > button {{
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.3) 0%, rgba(76, 175, 80, 0.15) 100%) !important;
+            border: 2px solid rgba(76, 175, 80, 0.8) !important;
+            color: #4CAF50 !important;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.6), 0 4px 15px rgba(76, 175, 80, 0.4) !important;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.8) !important;
+            animation: chartGlow 2s ease-in-out infinite alternate !important;
+        }}
+        
+        @keyframes chartGlow {{
+            from {{
+                box-shadow: 0 0 20px rgba(76, 175, 80, 0.6), 0 4px 15px rgba(76, 175, 80, 0.4);
+            }}
+            to {{
+                box-shadow: 0 0 30px rgba(76, 175, 80, 0.8), 0 4px 20px rgba(76, 175, 80, 0.6);
+            }}
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Display selected chart
+        if st.session_state.selected_chart_type == "📈 Line Chart":
+            st.markdown("### 📈 Line Chart Visualization")
+            if multi_select and len(selected_vars) > 0:
+                chart_data = df[selected_vars]
+                if group_by:
+                    chart_data = df.groupby(group_by)[selected_vars].mean()
+                st.line_chart(chart_data, height=450)
+                st.caption(f"📈 Showing {len(selected_vars)} variable(s)" + (f" grouped by {group_by}" if group_by else ""))
             else:
-                st.info("Need at least 2 numeric columns for correlation analysis.")
+                chart_data = df[selected_col]
+                if group_by:
+                    chart_data = df.groupby(group_by)[selected_col].mean()
+                st.line_chart(chart_data, height=450)
+                st.caption(f"📈 {selected_col}" + (f" grouped by {group_by}" if group_by else ""))
+        
+        elif st.session_state.selected_chart_type == "📊 Area Chart":
+            st.markdown("### 📊 Area Chart Visualization")
+            if multi_select and len(selected_vars) > 0:
+                chart_data = df[selected_vars]
+                if group_by:
+                    chart_data = df.groupby(group_by)[selected_vars].mean()
+                st.area_chart(chart_data, height=450)
+                st.caption(f"📊 Showing {len(selected_vars)} variable(s)" + (f" grouped by {group_by}" if group_by else ""))
+            else:
+                chart_data = df[selected_col]
+                if group_by:
+                    chart_data = df.groupby(group_by)[selected_col].mean()
+                st.area_chart(chart_data, height=450)
+                st.caption(f"📊 {selected_col}" + (f" grouped by {group_by}" if group_by else ""))
+        
+        elif st.session_state.selected_chart_type == "🥧 Pie Chart":
+            st.markdown("### 🥧 Distribution Pie Chart")
+            
+            # Allow grouping by categorical column
+            if group_by:
+                pie_data = df.groupby(group_by)[selected_col].sum().head(10)
+                title = f"Distribution of {selected_col} by {group_by}"
+            else:
+                pie_data = df[selected_col].value_counts().head(10)
+                title = f"Distribution of {selected_col}"
+            
+            if len(pie_data) > 0:
+                fig, ax = plt.subplots(figsize=(7, 5), facecolor='#2d3436')
+                ax.set_facecolor('#2d3436')
+                
+                # Use a better color scheme
+                colors = plt.cm.viridis(np.linspace(0, 1, len(pie_data)))
+                
+                wedges, texts, autotexts = ax.pie(
+                    pie_data.values,
+                    labels=pie_data.index,
+                    autopct="%1.1f%%",
+                    colors=colors,
+                    startangle=90,
+                    textprops={'color': '#e0e0e0', 'fontsize': 9, 'fontweight': 'bold'}
+                )
+                
+                ax.set_title(title, color='#e0e0e0', fontsize=14, fontweight='bold', pad=20)
+                
+                # Add summary stats
+                total = pie_data.sum()
+                st.caption(f"📊 Total: {total:,.2f} | Categories: {len(pie_data)} | Top category: {pie_data.index[0]} ({pie_data.iloc[0]/total*100:.1f}%)")
+                
+                st.pyplot(fig)
+            else:
+                st.warning("⚠️ No data available for pie chart.")
+        
+        elif st.session_state.selected_chart_type == "📉 Histogram":
+            st.markdown("### 📉 Histogram Distribution")
+            
+            # Allow grouping by categorical column
+            if group_by:
+                fig, ax = plt.subplots(figsize=(12, 6), facecolor='#2d3436')
+                ax.set_facecolor('#2d3436')
+                
+                groups = df[group_by].unique()[:10]  # Limit to 10 groups
+                colors = plt.cm.viridis(np.linspace(0, 1, len(groups)))
+                
+                for i, group in enumerate(groups):
+                    group_data = df[df[group_by] == group][selected_col].dropna()
+                    if len(group_data) > 0:
+                        ax.hist(group_data, bins=30, alpha=0.6, label=str(group), 
+                               color=colors[i], edgecolor='white', linewidth=0.5)
+                
+                ax.set_xlabel(selected_col, color='#e0e0e0', fontsize=12, fontweight='bold')
+                ax.set_ylabel('Frequency', color='#e0e0e0', fontsize=12, fontweight='bold')
+                ax.set_title(f'Histogram of {selected_col} by {group_by}', color='#e0e0e0', fontsize=14, fontweight='bold')
+                ax.legend(title=group_by, title_fontsize=10, fontsize=9, facecolor='#2d3436', edgecolor='#4CAF50')
+                ax.tick_params(colors='#e0e0e0')
+                ax.grid(True, alpha=0.3, color='#4CAF50', linestyle='--')
+            else:
+                fig, ax = plt.subplots(figsize=(10, 6), facecolor='#2d3436')
+                ax.set_facecolor('#2d3436')
+                
+                data = df[selected_col].dropna()
+                n, bins, patches = ax.hist(data, bins=30, color='#4CAF50', edgecolor='#66BB6A', alpha=0.7, linewidth=1.5)
+                
+                # Add statistics
+                mean_val = data.mean()
+                median_val = data.median()
+                std_val = data.std()
+                
+                ax.axvline(mean_val, color='#FF6B6B', linestyle='--', linewidth=2, label=f'Mean: {mean_val:.2f}')
+                ax.axvline(median_val, color='#4ECDC4', linestyle='--', linewidth=2, label=f'Median: {median_val:.2f}')
+                
+                ax.set_xlabel(selected_col, color='#e0e0e0', fontsize=12, fontweight='bold')
+                ax.set_ylabel('Frequency', color='#e0e0e0', fontsize=12, fontweight='bold')
+                ax.set_title(f'Histogram of {selected_col}', color='#e0e0e0', fontsize=14, fontweight='bold')
+                ax.legend(facecolor='#2d3436', edgecolor='#4CAF50', fontsize=10)
+                ax.tick_params(colors='#e0e0e0')
+                ax.grid(True, alpha=0.3, color='#4CAF50', linestyle='--')
+                
+                # Display statistics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Mean", f"{mean_val:,.2f}")
+                with col2:
+                    st.metric("Median", f"{median_val:,.2f}")
+                with col3:
+                    st.metric("Std Dev", f"{std_val:,.2f}")
+                with col4:
+                    st.metric("Count", f"{len(data):,}")
+            
+            st.pyplot(fig)
+        
+        elif st.session_state.selected_chart_type == "📊 Box Plot":
+            st.markdown("### 📊 Box Plot Analysis")
+            
+            # Allow grouping by categorical column or multiple variables
+            if group_by:
+                fig, ax = plt.subplots(figsize=(12, 6), facecolor='#2d3436')
+                ax.set_facecolor('#2d3436')
+                
+                groups = df[group_by].dropna().unique()[:15]  # Limit to 15 groups
+                data_to_plot = [df[df[group_by] == group][selected_col].dropna().values for group in groups]
+                
+                bp = ax.boxplot(data_to_plot, labels=[str(g) for g in groups], patch_artist=True,
+                               boxprops=dict(facecolor='#4CAF50', alpha=0.7, linewidth=1.5),
+                               medianprops=dict(color='#66BB6A', linewidth=2.5),
+                               whiskerprops=dict(color='#e0e0e0', linewidth=1.5),
+                               capprops=dict(color='#e0e0e0', linewidth=1.5),
+                               flierprops=dict(marker='o', markerfacecolor='#FF6B6B', markersize=5, alpha=0.5))
+                
+                ax.set_xlabel(group_by, color='#e0e0e0', fontsize=12, fontweight='bold')
+                ax.set_ylabel(selected_col, color='#e0e0e0', fontsize=12, fontweight='bold')
+                ax.set_title(f'Box Plot of {selected_col} by {group_by}', color='#e0e0e0', fontsize=14, fontweight='bold')
+                plt.xticks(rotation=45, ha='right')
+            elif multi_select and len(selected_vars) > 1:
+                fig, ax = plt.subplots(figsize=(12, 6), facecolor='#2d3436')
+                ax.set_facecolor('#2d3436')
+                
+                data_to_plot = [df[var].dropna().values for var in selected_vars]
+                
+                bp = ax.boxplot(data_to_plot, labels=selected_vars, patch_artist=True,
+                               boxprops=dict(facecolor='#4CAF50', alpha=0.7, linewidth=1.5),
+                               medianprops=dict(color='#66BB6A', linewidth=2.5),
+                               whiskerprops=dict(color='#e0e0e0', linewidth=1.5),
+                               capprops=dict(color='#e0e0e0', linewidth=1.5),
+                               flierprops=dict(marker='o', markerfacecolor='#FF6B6B', markersize=5, alpha=0.5))
+                
+                ax.set_ylabel('Value', color='#e0e0e0', fontsize=12, fontweight='bold')
+                ax.set_title('Box Plot Comparison', color='#e0e0e0', fontsize=14, fontweight='bold')
+                plt.xticks(rotation=45, ha='right')
+            else:
+                fig, ax = plt.subplots(figsize=(10, 6), facecolor='#2d3436')
+                ax.set_facecolor('#2d3436')
+                
+                data = df[selected_col].dropna()
+                bp = ax.boxplot([data], labels=[selected_col], patch_artist=True,
+                               boxprops=dict(facecolor='#4CAF50', alpha=0.7, linewidth=1.5),
+                               medianprops=dict(color='#66BB6A', linewidth=2.5),
+                               whiskerprops=dict(color='#e0e0e0', linewidth=1.5),
+                               capprops=dict(color='#e0e0e0', linewidth=1.5),
+                               flierprops=dict(marker='o', markerfacecolor='#FF6B6B', markersize=5, alpha=0.5))
+                
+                # Add statistics
+                q1 = data.quantile(0.25)
+                q3 = data.quantile(0.75)
+                iqr = q3 - q1
+                median_val = data.median()
+                
+                ax.set_ylabel(selected_col, color='#e0e0e0', fontsize=12, fontweight='bold')
+                ax.set_title(f'Box Plot of {selected_col}', color='#e0e0e0', fontsize=14, fontweight='bold')
+                
+                # Display statistics
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Q1 (25%)", f"{q1:,.2f}")
+                with col2:
+                    st.metric("Median", f"{median_val:,.2f}")
+                with col3:
+                    st.metric("Q3 (75%)", f"{q3:,.2f}")
+                with col4:
+                    st.metric("IQR", f"{iqr:,.2f}")
+            
+            ax.tick_params(colors='#e0e0e0')
+            ax.grid(True, alpha=0.3, color='#4CAF50', linestyle='--', axis='y')
+            st.pyplot(fig)
+        
+        elif st.session_state.selected_chart_type == "🔍 Scatter Plot":
+            if len(numeric_cols) > 1 and secondary_col:
+                st.markdown("### 🔍 Scatter Plot Analysis")
+                
+                # Allow grouping by categorical column
+                if group_by:
+                    fig, ax = plt.subplots(figsize=(11, 7), facecolor='#2d3436')
+                    ax.set_facecolor('#2d3436')
+                    
+                    groups = df[group_by].dropna().unique()[:10]  # Limit to 10 groups
+                    colors = plt.cm.viridis(np.linspace(0, 1, len(groups)))
+                    
+                    for i, group in enumerate(groups):
+                        group_data = df[df[group_by] == group]
+                        if len(group_data) > 0:
+                            ax.scatter(group_data[selected_col], group_data[secondary_col], 
+                                     alpha=0.6, s=60, label=str(group), color=colors[i], edgecolors='white', linewidth=0.5)
+                    
+                    ax.set_xlabel(selected_col, color='#e0e0e0', fontsize=12, fontweight='bold')
+                    ax.set_ylabel(secondary_col, color='#e0e0e0', fontsize=12, fontweight='bold')
+                    ax.set_title(f'Scatter Plot: {selected_col} vs {secondary_col} by {group_by}', 
+                               color='#e0e0e0', fontsize=14, fontweight='bold')
+                    ax.legend(title=group_by, title_fontsize=10, fontsize=9, facecolor='#2d3436', edgecolor='#4CAF50')
+                else:
+                    fig, ax = plt.subplots(figsize=(11, 7), facecolor='#2d3436')
+                    ax.set_facecolor('#2d3436')
+                    
+                    # Calculate correlation
+                    correlation = df[[selected_col, secondary_col]].corr().iloc[0, 1]
+                    
+                    ax.scatter(df[selected_col], df[secondary_col], alpha=0.6, color='#4CAF50', 
+                             s=60, edgecolors='white', linewidth=0.5)
+                    
+                    # Add trend line
+                    z = np.polyfit(df[selected_col].dropna(), df[secondary_col].dropna(), 1)
+                    p = np.poly1d(z)
+                    ax.plot(df[selected_col].dropna().sort_values(), 
+                           p(df[selected_col].dropna().sort_values()), 
+                           "r--", alpha=0.8, linewidth=2, label=f'Trend (r={correlation:.3f})')
+                    
+                    ax.set_xlabel(selected_col, color='#e0e0e0', fontsize=12, fontweight='bold')
+                    ax.set_ylabel(secondary_col, color='#e0e0e0', fontsize=12, fontweight='bold')
+                    ax.set_title(f'Scatter Plot: {selected_col} vs {secondary_col}', 
+                               color='#e0e0e0', fontsize=14, fontweight='bold')
+                    ax.legend(facecolor='#2d3436', edgecolor='#4CAF50', fontsize=10)
+                    
+                    # Display correlation
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Correlation Coefficient", f"{correlation:.4f}")
+                    with col2:
+                        strength = "Strong" if abs(correlation) > 0.7 else "Moderate" if abs(correlation) > 0.3 else "Weak"
+                        st.metric("Relationship", strength)
+                
+                ax.tick_params(colors='#e0e0e0')
+                ax.grid(True, alpha=0.3, color='#4CAF50', linestyle='--')
+                st.pyplot(fig)
+            else:
+                st.info("ℹ️ Need at least 2 numeric columns for scatter plot. Please select a secondary variable.")
+        
+        elif st.session_state.selected_chart_type == "🔥 Correlation":
+            if len(numeric_cols) > 1:
+                st.markdown("### 🔥 Correlation Heatmap")
+                
+                # Allow selection of specific columns for correlation
+                selected_corr_cols = st.multiselect(
+                    "📊 Select variables for correlation analysis",
+                    numeric_cols,
+                    default=numeric_cols[:min(10, len(numeric_cols))],  # Default to first 10
+                    key="corr_vars"
+                )
+                
+                if len(selected_corr_cols) > 1:
+                    corr = df[selected_corr_cols].corr()
+                    
+                    # Create a visual heatmap
+                    fig, ax = plt.subplots(figsize=(max(10, len(selected_corr_cols)*0.8), 
+                                                    max(8, len(selected_corr_cols)*0.8)), 
+                                         facecolor='#2d3436')
+                    ax.set_facecolor('#2d3436')
+                    
+                    im = ax.imshow(corr.values, cmap='coolwarm', aspect='auto', vmin=-1, vmax=1)
+                    
+                    # Set ticks and labels
+                    ax.set_xticks(np.arange(len(selected_corr_cols)))
+                    ax.set_yticks(np.arange(len(selected_corr_cols)))
+                    ax.set_xticklabels(selected_corr_cols, rotation=45, ha='right', color='#e0e0e0')
+                    ax.set_yticklabels(selected_corr_cols, color='#e0e0e0')
+                    
+                    # Add text annotations
+                    for i in range(len(selected_corr_cols)):
+                        for j in range(len(selected_corr_cols)):
+                            text = ax.text(j, i, f'{corr.iloc[i, j]:.2f}',
+                                         ha="center", va="center", color="white" if abs(corr.iloc[i, j]) > 0.5 else "#b0b0b0",
+                                         fontweight='bold' if abs(corr.iloc[i, j]) > 0.7 else 'normal')
+                    
+                    ax.set_title('Correlation Heatmap', color='#e0e0e0', fontsize=14, fontweight='bold', pad=20)
+                    
+                    # Add colorbar
+                    cbar = plt.colorbar(im, ax=ax)
+                    cbar.set_label('Correlation Coefficient', color='#e0e0e0', fontsize=11)
+                    cbar.ax.tick_params(colors='#e0e0e0')
+                    
+                    st.pyplot(fig)
+                    
+                    # Display correlation matrix as dataframe
+                    st.markdown("#### 📋 Correlation Matrix (Detailed)")
+                    st.dataframe(corr.style.background_gradient(cmap="coolwarm", axis=None, vmin=-1, vmax=1)
+                                .format("{:.3f}"), use_container_width=True)
+                    
+                    # Find strongest correlations
+                    st.markdown("#### 🔍 Strongest Correlations")
+                    corr_pairs = []
+                    for i in range(len(selected_corr_cols)):
+                        for j in range(i+1, len(selected_corr_cols)):
+                            corr_pairs.append({
+                                'Variable 1': selected_corr_cols[i],
+                                'Variable 2': selected_corr_cols[j],
+                                'Correlation': corr.iloc[i, j]
+                            })
+                    corr_df = pd.DataFrame(corr_pairs).sort_values('Correlation', key=abs, ascending=False)
+                    st.dataframe(corr_df.head(10), use_container_width=True, hide_index=True)
+                else:
+                    st.warning("⚠️ Please select at least 2 variables for correlation analysis.")
+            else:
+                st.info("ℹ️ Need at least 2 numeric columns for correlation analysis.")
     else:
         st.info("ℹ️ No numeric columns found in the dataset.")
     
