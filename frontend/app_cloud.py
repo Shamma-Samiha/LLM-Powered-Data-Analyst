@@ -1,23 +1,26 @@
 # frontend/app_cloud.py
-"""
-Streamlit Cloud version (EDA + Charts only).
-✅ No FastAPI backend required
-✅ No Ollama / subprocess (Streamlit Cloud doesn't support local Ollama)
-✅ Works fully on Streamlit Cloud
-"""
+# Streamlit Cloud version (EDA-only): no FastAPI, no Ollama, no subprocess.
+# Includes: Dataset Overview card heading inside the top empty card,
+# Data Preview heading inside its card, Data Visualizations heading inside its card,
+# and PDF report generation (ReportLab).
 
 import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
-import matplotlib.pyplot as plt
+
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import A4
+
 import matplotlib
 matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
-# -----------------------------
+# --------------------------------------------------
 # Session state
-# -----------------------------
+# --------------------------------------------------
 if "df" not in st.session_state:
     st.session_state.df = None
 
@@ -25,20 +28,20 @@ if "selected_chart_type" not in st.session_state:
     st.session_state.selected_chart_type = "Line Chart"
 
 
-# -----------------------------
+# --------------------------------------------------
 # Page config
-# -----------------------------
+# --------------------------------------------------
 st.set_page_config(
-    page_title="LLM Powered Data Analyst (Cloud Demo)",
+    page_title="LLM Powered Data Analyst (Cloud EDA)",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed",
     menu_items=None
 )
 
-# -----------------------------
-# CSS (reuse your styling)
-# -----------------------------
+# --------------------------------------------------
+# Custom CSS (keep your theme)
+# --------------------------------------------------
 st.markdown("""
 <style>
 .stApp {
@@ -53,8 +56,25 @@ st.markdown("""
     padding-right: 2rem !important;
 }
 section[data-testid="stSidebar"] { display: none !important; }
-.main { color: #e0e0e0; }
-p, div, span, label { color: #e0e0e0 !important; }
+.main { width: 100% !important; padding-left: 0 !important; padding-right: 0 !important; }
+.stApp > div { padding-left: 0 !important; padding-right: 0 !important; }
+.main, p, div, span, label { color: #e0e0e0 !important; }
+
+.top-bar {
+    background: rgba(45, 52, 54, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 2rem 2.5rem !important;
+    margin: 0 auto 2rem auto !important;
+    max-width: 95% !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 120px;
+}
+
 .card {
     background: rgba(45, 52, 54, 0.95);
     backdrop-filter: blur(10px);
@@ -64,20 +84,9 @@ p, div, span, label { color: #e0e0e0 !important; }
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(76, 175, 80, 0.2);
 }
-.top-bar {
-    background: rgba(45, 52, 54, 0.95) !important;
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    padding: 2rem 2.5rem !important;
-    margin: 0 auto 2rem auto !important;
-    max-width: 95% !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    border: 1px solid rgba(76,175,80,0.2);
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 120px;
-}
+
+h1, h2, h3, h4, h5, h6 { color: #e0e0e0 !important; font-weight: 700; }
+
 .stButton > button {
     background: linear-gradient(135deg, #4a7c59 0%, #2d5a3d 100%);
     color: #ffffff !important;
@@ -93,86 +102,134 @@ p, div, span, label { color: #e0e0e0 !important; }
     background: linear-gradient(135deg, #5a8c69 0%, #3d6a4d 100%);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+    color: #ffffff !important;
 }
+
+.stTextInput > div > div > input {
+    background: rgba(61, 74, 82, 0.8) !important;
+    color: #e0e0e0 !important;
+    border-radius: 8px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+hr { border-color: rgba(76, 175, 80, 0.3); }
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
+# --------------------------------------------------
+# Small helpers to ensure headings go INSIDE the card
+# --------------------------------------------------
+def card_start(title: str, subtitle: str | None = None):
+    st.markdown(f"""
+    <div class="card">
+        <h2 style="margin: 0 0 0.75rem 0; padding: 0; font-size: 1.8rem;">
+            {title}
+        </h2>
+        {"<p style='color:#b0b0b0; margin: 0 0 1.25rem 0;'>" + subtitle + "</p>" if subtitle else ""}
+    """, unsafe_allow_html=True)
 
-# -----------------------------
+def card_end():
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# --------------------------------------------------
+# PDF Generator (Cloud friendly)
+# --------------------------------------------------
+def generate_pdf_report_cloud(
+    df: pd.DataFrame,
+    basic_summary: dict,
+    notes: str | None = None
+) -> BytesIO:
+    buffer = BytesIO()
+    styles = getSampleStyleSheet()
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elems = []
+
+    elems.append(Paragraph("LLM Powered Data Analyst - Cloud EDA Report", styles["Title"]))
+    elems.append(Spacer(1, 12))
+
+    elems.append(Paragraph("<b>Dataset Overview</b>", styles["Heading2"]))
+    elems.append(Paragraph(f"Rows: {basic_summary['rows']}", styles["BodyText"]))
+    elems.append(Paragraph(f"Columns: {basic_summary['cols']}", styles["BodyText"]))
+    elems.append(Spacer(1, 10))
+
+    elems.append(Paragraph("<b>Columns</b>", styles["Heading2"]))
+    cols_text = ", ".join([str(c) for c in df.columns.tolist()])
+    elems.append(Paragraph(cols_text, styles["BodyText"]))
+    elems.append(Spacer(1, 10))
+
+    elems.append(Paragraph("<b>Missing Values (Top)</b>", styles["Heading2"]))
+    missing = df.isna().sum().sort_values(ascending=False)
+    top_missing = missing[missing > 0].head(10)
+    if len(top_missing) == 0:
+        elems.append(Paragraph("No missing values found.", styles["BodyText"]))
+    else:
+        for k, v in top_missing.items():
+            elems.append(Paragraph(f"- {k}: {int(v)}", styles["BodyText"]))
+    elems.append(Spacer(1, 10))
+
+    elems.append(Paragraph("<b>Numeric Summary (Quick)</b>", styles["Heading2"]))
+    num_cols = df.select_dtypes(include=["number"]).columns.tolist()
+    if not num_cols:
+        elems.append(Paragraph("No numeric columns found.", styles["BodyText"]))
+    else:
+        desc = df[num_cols].describe().round(2)
+        # Keep it short in PDF: first few columns only
+        show_cols = num_cols[:6]
+        for c in show_cols:
+            elems.append(Paragraph(f"<b>{c}</b>", styles["BodyText"]))
+            elems.append(Paragraph(
+                f"min={desc.loc['min', c]}, 25%={desc.loc['25%', c]}, "
+                f"median={desc.loc['50%', c]}, mean={desc.loc['mean', c]}, "
+                f"75%={desc.loc['75%', c]}, max={desc.loc['max', c]}",
+                styles["BodyText"]
+            ))
+            elems.append(Spacer(1, 6))
+
+    if notes:
+        elems.append(Spacer(1, 12))
+        elems.append(Paragraph("<b>Notes</b>", styles["Heading2"]))
+        elems.append(Paragraph(notes, styles["BodyText"]))
+
+    doc.build(elems)
+    buffer.seek(0)
+    return buffer
+
+
+# --------------------------------------------------
 # Header
-# -----------------------------
+# --------------------------------------------------
 st.markdown("""
 <div class="top-bar">
-  <div style="width:100%; text-align:center;">
-    <h1 style="font-size:2.5rem;
-               background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
-               -webkit-background-clip:text;
-               -webkit-text-fill-color:transparent;
-               font-weight:800; margin:0 0 1rem 0;">
-      LLM Powered Data Analyst
-    </h1>
-    <p style="color:#b0b0b0; font-size:1.1rem; line-height:1.6; margin:0;">
-      Streamlit Cloud demo (EDA + Charts). Local AI (Ollama) runs only on your machine.
-    </p>
-  </div>
+    <div style="width: 100%; text-align: center;">
+        <h1 style="font-size: 2.5rem;
+                   background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+                   -webkit-background-clip: text;
+                   -webkit-text-fill-color: transparent;
+                   font-weight: 800; margin: 0 0 1rem 0;">
+            LLM Powered Data Analyst
+        </h1>
+        <p style="color: #b0b0b0; font-size: 1.1rem; margin: 0;">
+            Streamlit Cloud demo: EDA + charts + PDF report (no backend / no Ollama).
+        </p>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 
-# -----------------------------
-# Helpers
-# -----------------------------
-def compute_eda(df: pd.DataFrame) -> dict:
-    return {
-        "rows": df.shape[0],
-        "columns": df.shape[1],
-        "column_names": list(df.columns),
-        "missing_values": df.isnull().sum().to_dict(),
-        "data_types": df.dtypes.astype(str).to_dict(),
-        "numeric_summary": df.select_dtypes(include=["number"]).describe().round(2).to_dict()
-    }
-
-
-def simple_summary_text(df: pd.DataFrame, eda: dict) -> str:
-    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
-    cat_cols = df.select_dtypes(include=["object", "category", "string"]).columns.tolist()
-
-    missing_total = int(sum(eda["missing_values"].values()))
-    top_missing = sorted(eda["missing_values"].items(), key=lambda x: x[1], reverse=True)[:5]
-
-    lines = []
-    lines.append(f"- This dataset has **{eda['rows']:,} rows** and **{eda['columns']} columns**.")
-    if numeric_cols:
-        lines.append(f"- Numeric columns: **{len(numeric_cols)}** (example: {', '.join(numeric_cols[:3])}{'...' if len(numeric_cols)>3 else ''}).")
-    if cat_cols:
-        lines.append(f"- Categorical columns: **{len(cat_cols)}** (example: {', '.join(cat_cols[:3])}{'...' if len(cat_cols)>3 else ''}).")
-    lines.append(f"- Total missing values: **{missing_total:,}**.")
-    if missing_total > 0:
-        lines.append("- Columns with most missing values: " + ", ".join([f"**{c}** ({v})" for c, v in top_missing if v > 0]) + ".")
-    lines.append("- Use the chart section below to explore distributions, outliers, correlations, and trends.")
-    return "\n".join(lines)
-
-
-# -----------------------------
+# --------------------------------------------------
 # Upload
-# -----------------------------
-st.markdown("""
-<div class="card">
-  <h2 style="margin:0 0 0.75rem 0;">📁 Upload Your Data File</h2>
-  <p style="color:#b0b0b0; margin:0 0 1rem 0;">
-    Upload a CSV or Excel file. (Cloud demo runs EDA + charts only.)
-  </p>
-</div>
-""", unsafe_allow_html=True)
-
+# --------------------------------------------------
+card_start("📁 Upload Your Data File", "Upload CSV / XLSX / XLS to run Cloud EDA.")
 uploaded_file = st.file_uploader(
     "Choose a CSV or Excel file",
     type=["csv", "xlsx", "xls"],
     label_visibility="collapsed"
 )
+card_end()
 
 if uploaded_file:
     # Load df
@@ -183,217 +240,188 @@ if uploaded_file:
 
     st.session_state.df = df
 
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.success(f"✅ File selected: **{uploaded_file.name}**")
+    # Basic summary
+    basic_summary = {
+        "rows": int(df.shape[0]),
+        "cols": int(df.shape[1]),
+        "size_kb": float(len(uploaded_file.getvalue()) / 1024.0)
+    }
+
+    # --------------------------------------------------
+    # ✅ Dataset Overview heading INSIDE the card
+    # --------------------------------------------------
+    card_start("📌 Dataset Overview (Cloud EDA)", "Quick stats + missing values + data types (computed locally).")
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric("📊 Rows", f"{len(df):,}")
+        st.metric("Rows", f"{basic_summary['rows']:,}")
     with c2:
-        st.metric("📋 Columns", len(df.columns))
+        st.metric("Columns", f"{basic_summary['cols']:,}")
     with c3:
-        size_kb = len(uploaded_file.getvalue()) / 1024
-        st.metric("💾 Size", f"{size_kb:.1f} KB")
+        st.metric("File Size", f"{basic_summary['size_kb']:.1f} KB")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # EDA
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📌 Dataset Overview (Cloud EDA)")
-    eda = compute_eda(df)
-
-    o1, o2 = st.columns(2)
-    with o1:
-        st.metric("Total Rows", f"{eda['rows']:,}")
-    with o2:
-        st.metric("Total Columns", eda["columns"])
-
+    # Missing + dtypes
     colA, colB = st.columns(2)
+
     with colA:
-        st.subheader("🧩 Missing Values")
-        missing_df = pd.DataFrame(list(eda["missing_values"].items()), columns=["Column", "Missing Count"])
+        st.markdown("### 🧩 Missing Values")
+        missing_df = (df.isna().sum()
+                      .sort_values(ascending=False)
+                      .reset_index())
+        missing_df.columns = ["Column", "Missing Count"]
         st.dataframe(missing_df, use_container_width=True, hide_index=True)
 
     with colB:
-        st.subheader("🧾 Data Types")
-        types_df = pd.DataFrame(list(eda["data_types"].items()), columns=["Column", "Data Type"])
+        st.markdown("### 🧾 Data Types")
+        types_df = (df.dtypes.astype(str)
+                    .reset_index())
+        types_df.columns = ["Column", "Data Type"]
         st.dataframe(types_df, use_container_width=True, hide_index=True)
 
-    st.subheader("📝 Quick Summary (No LLM on Cloud)")
-    st.markdown(simple_summary_text(df, eda))
-    st.caption("Note: The AI/Ollama explanation runs locally in your full version, not on Streamlit Cloud.")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # PDF Download (added back ✅)
+    pdf_notes = "This is the Streamlit Cloud (EDA-only) version. For AI explanations, run locally with FastAPI + Ollama."
+    pdf = generate_pdf_report_cloud(df, basic_summary, notes=pdf_notes)
 
-    # Preview
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("🔎 Data Preview")
-    st.dataframe(df.head(20), use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.download_button(
+        "📄 Download PDF Report",
+        data=pdf,
+        file_name="cloud_eda_report.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
 
+    card_end()
 
-# -----------------------------
-# Visualizations
-# -----------------------------
-if st.session_state.df is not None:
-    st.markdown("---")
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📊 Data Visualizations")
+    # --------------------------------------------------
+    # ✅ Data Preview heading INSIDE the card
+    # --------------------------------------------------
+    card_start("🔎 Data Preview", "First rows of your dataset (editable view is not enabled).")
+    st.dataframe(df.head(30), use_container_width=True)
+    card_end()
 
-    df = st.session_state.df
-    numeric_cols = df.select_dtypes(include=["int64", "float64", "int32", "float32"]).columns.tolist()
+    # --------------------------------------------------
+    # ✅ Data Visualizations heading INSIDE the card
+    # --------------------------------------------------
+    card_start("📊 Data Visualizations", "Choose a chart type and variables. All charts generated locally.")
+
+    numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     categorical_cols = df.select_dtypes(include=["object", "category", "string"]).columns.tolist()
 
     if not numeric_cols:
-        st.info("ℹ️ No numeric columns found. Upload a dataset with numeric columns to generate charts.")
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.info("No numeric columns found, so charts are limited.")
+        card_end()
     else:
-        filter_col1, filter_col2 = st.columns(2)
-        with filter_col1:
-            selected_col = st.selectbox("📈 Primary Numeric Column", numeric_cols)
-
-        secondary_col = None
-        with filter_col2:
-            if len(numeric_cols) > 1:
-                secondary_col = st.selectbox(
-                    "📌 Secondary Numeric Column (for scatter)",
-                    ["None"] + [c for c in numeric_cols if c != selected_col]
-                )
-                if secondary_col == "None":
-                    secondary_col = None
-
-        group_by = None
-        if categorical_cols:
-            group_by = st.selectbox("📂 Group By (Optional)", ["None"] + categorical_cols)
-            if group_by == "None":
-                group_by = None
-
+        # Chart selection controls
         chart_types = ["Line Chart", "Area Chart", "Pie Chart", "Histogram", "Box Plot", "Scatter Plot", "Correlation"]
-        cols = st.columns(len(chart_types))
-        for i, ct in enumerate(chart_types):
-            with cols[i]:
-                if st.button(ct, use_container_width=True, key=f"chart_{ct}"):
-                    st.session_state.selected_chart_type = ct
+        selected_chart = st.radio(
+            "Chart Type",
+            chart_types,
+            horizontal=True,
+            index=chart_types.index(st.session_state.selected_chart_type) if st.session_state.selected_chart_type in chart_types else 0
+        )
+        st.session_state.selected_chart_type = selected_chart
 
-        st.markdown(f"### ✅ Selected: {st.session_state.selected_chart_type}")
+        left, right = st.columns(2)
+        with left:
+            y_col = st.selectbox("Primary numeric column", numeric_cols, index=0)
 
-        # Plot
-        ct = st.session_state.selected_chart_type
+        x_col = None
+        group_by = None
 
-        if ct == "Line Chart":
-            chart_data = df.groupby(group_by)[selected_col].mean() if group_by else df[selected_col]
-            st.line_chart(chart_data, height=450)
+        with right:
+            if selected_chart == "Scatter Plot" and len(numeric_cols) > 1:
+                x_options = [c for c in numeric_cols if c != y_col]
+                x_col = st.selectbox("Secondary numeric column (X-axis)", x_options, index=0)
+            if selected_chart in ["Line Chart", "Area Chart", "Pie Chart"] and categorical_cols:
+                group_by = st.selectbox("Group by (optional)", ["None"] + categorical_cols)
+                if group_by == "None":
+                    group_by = None
 
-        elif ct == "Area Chart":
-            chart_data = df.groupby(group_by)[selected_col].mean() if group_by else df[selected_col]
-            st.area_chart(chart_data, height=450)
+        # Render chart
+        if selected_chart == "Line Chart":
+            data = df.groupby(group_by)[y_col].mean() if group_by else df[y_col]
+            st.line_chart(data, height=450)
 
-        elif ct == "Pie Chart":
+        elif selected_chart == "Area Chart":
+            data = df.groupby(group_by)[y_col].mean() if group_by else df[y_col]
+            st.area_chart(data, height=450)
+
+        elif selected_chart == "Pie Chart":
             if group_by:
-                pie_data = df.groupby(group_by)[selected_col].mean().sort_values(ascending=False).head(10)
-                title = f"{selected_col} (mean) by {group_by}"
+                pie_data = df.groupby(group_by)[y_col].sum().sort_values(ascending=False).head(10)
+                title = f"{y_col} sum by {group_by} (Top 10)"
             else:
-                pie_data = df[selected_col].value_counts().head(10)
-                title = f"Top values of {selected_col}"
+                pie_data = df[y_col].value_counts().head(10)
+                title = f"Top 10 values of {y_col}"
 
-            fig, ax = plt.subplots(figsize=(7, 5))
-            ax.pie(pie_data.values, labels=pie_data.index, autopct="%1.1f%%", startangle=90)
-            ax.set_title(title)
+            fig, ax = plt.subplots(figsize=(8, 5), facecolor="#2d3436")
+            ax.set_facecolor("#2d3436")
+            ax.pie(pie_data.values, labels=pie_data.index, autopct="%1.1f%%")
+            ax.set_title(title, color="#e0e0e0")
             st.pyplot(fig)
 
-        elif ct == "Histogram":
-            fig, ax = plt.subplots(figsize=(10, 6))
-            data = df[selected_col].dropna()
-            ax.hist(data, bins=30)
-            ax.set_title(f"Histogram of {selected_col}")
-            ax.set_xlabel(selected_col)
-            ax.set_ylabel("Frequency")
+        elif selected_chart == "Histogram":
+            fig, ax = plt.subplots(figsize=(10, 5), facecolor="#2d3436")
+            ax.set_facecolor("#2d3436")
+            ax.hist(df[y_col].dropna(), bins=30)
+            ax.set_title(f"Histogram of {y_col}", color="#e0e0e0")
+            ax.tick_params(colors="#e0e0e0")
             st.pyplot(fig)
 
-        elif ct == "Box Plot":
-            fig, ax = plt.subplots(figsize=(10, 6))
-            if group_by:
-                groups = df[group_by].dropna().unique()[:15]
-                data_to_plot = [df[df[group_by] == g][selected_col].dropna().values for g in groups]
-                ax.boxplot(data_to_plot, labels=[str(g) for g in groups])
-                ax.set_title(f"Box Plot of {selected_col} by {group_by}")
-                plt.xticks(rotation=45, ha="right")
-            else:
-                ax.boxplot(df[selected_col].dropna().values, labels=[selected_col])
-                ax.set_title(f"Box Plot of {selected_col}")
+        elif selected_chart == "Box Plot":
+            fig, ax = plt.subplots(figsize=(8, 5), facecolor="#2d3436")
+            ax.set_facecolor("#2d3436")
+            ax.boxplot(df[y_col].dropna(), vert=True)
+            ax.set_title(f"Box plot of {y_col}", color="#e0e0e0")
+            ax.tick_params(colors="#e0e0e0")
             st.pyplot(fig)
 
-        elif ct == "Scatter Plot":
-            if secondary_col is None:
-                st.warning("Select a secondary numeric column to draw a scatter plot.")
+        elif selected_chart == "Scatter Plot":
+            if x_col is None:
+                st.info("Pick a secondary numeric column to build the scatter plot.")
             else:
-                fig, ax = plt.subplots(figsize=(10, 6))
-                ax.scatter(df[secondary_col], df[selected_col], alpha=0.6)
-                ax.set_title(f"{selected_col} vs {secondary_col}")
-                ax.set_xlabel(secondary_col)
-                ax.set_ylabel(selected_col)
+                fig, ax = plt.subplots(figsize=(9, 6), facecolor="#2d3436")
+                ax.set_facecolor("#2d3436")
+                ax.scatter(df[x_col], df[y_col], alpha=0.6)
+                ax.set_xlabel(x_col, color="#e0e0e0")
+                ax.set_ylabel(y_col, color="#e0e0e0")
+                ax.set_title(f"{y_col} vs {x_col}", color="#e0e0e0")
+                ax.tick_params(colors="#e0e0e0")
                 st.pyplot(fig)
 
-        elif ct == "Correlation":
+        elif selected_chart == "Correlation":
             if len(numeric_cols) < 2:
                 st.info("Need at least 2 numeric columns for correlation.")
             else:
-                corr_cols = st.multiselect(
-                    "Select columns for correlation",
+                selected_corr_cols = st.multiselect(
+                    "Select numeric columns (max recommended: ~10)",
                     numeric_cols,
                     default=numeric_cols[: min(10, len(numeric_cols))]
                 )
-                if len(corr_cols) < 2:
+                if len(selected_corr_cols) < 2:
                     st.warning("Select at least 2 columns.")
                 else:
-                    corr = df[corr_cols].corr()
-                    st.dataframe(corr.style.background_gradient(cmap="coolwarm"), use_container_width=True)
+                    corr = df[selected_corr_cols].corr()
+                    st.dataframe(
+                        corr.style.background_gradient(cmap="coolwarm", axis=None).format("{:.3f}"),
+                        use_container_width=True
+                    )
 
-        st.markdown("</div>", unsafe_allow_html=True)
+        card_end()
 
-
-# -----------------------------
-# Ask questions (Cloud-safe)
-# -----------------------------
-st.markdown("---")
-st.markdown("""
-<div class="card">
-  <h2 style="margin:0 0 0.5rem 0;">💬 Questions (Cloud Demo)</h2>
-  <p style="color:#b0b0b0; margin:0;">
-    Streamlit Cloud can't run Ollama locally. For AI answers, run the full local version.
-    Here you can ask EDA-style questions like: missing values, columns, shape, etc.
-  </p>
-</div>
-""", unsafe_allow_html=True)
-
-q = st.text_input("Ask a basic question (cloud-safe)", placeholder="e.g., Which column has the most missing values?")
-
-if q and st.session_state.df is not None:
-    df = st.session_state.df
-    eda = compute_eda(df)
-    ql = q.lower()
-
-    if "missing" in ql:
-        missing = pd.Series(eda["missing_values"]).sort_values(ascending=False)
-        top = missing.head(10)
-        st.write("Top columns with missing values:")
-        st.dataframe(top.reset_index().rename(columns={"index": "Column", 0: "Missing"}), use_container_width=True, hide_index=True)
-    elif "rows" in ql or "shape" in ql:
-        st.write(f"Rows: {eda['rows']:,}, Columns: {eda['columns']}")
-    elif "columns" in ql:
-        st.write("Columns:")
-        st.write(eda["column_names"])
-    else:
-        st.info("Cloud demo supports basic EDA answers. For full AI Q&A, run local version with FastAPI + Ollama.")
+else:
+    st.info("Upload a dataset to see the Cloud EDA overview, preview, charts, and PDF report.")
 
 
-# -----------------------------
+# --------------------------------------------------
 # Footer
-# -----------------------------
+# --------------------------------------------------
 st.markdown("---")
 st.markdown("""
-<div style="text-align:center; padding:2rem; color:#b0b0b0;">
-  <p style="margin:0; font-size:0.9rem;">
-    Cloud demo: EDA + Charts. Full version (local): FastAPI + Ollama for AI explanations.
+<div style="text-align: center; padding: 2rem; color: #b0b0b0;">
+  <p style="font-size: 0.9rem; margin: 0;">
+    Built with ❤️ using Streamlit + Pandas + Matplotlib + ReportLab.
+    Cloud version is EDA-only (AI runs locally with FastAPI + Ollama).
   </p>
 </div>
 """, unsafe_allow_html=True)
