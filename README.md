@@ -13,11 +13,16 @@ automatically analyzes the data, and generates human-readable insights using a l
 ## Website View
 
 ![Website View 1](assets/website_view_1.png)
+![Website View 2.0](assets/website_view_2.0.png)
 ![Website View 2](assets/website_view_2.png)
+![Website View 2.1](assets/website_view_2.1.png)
+![Website View 2.2](assets/website_view_2.2.png)
 ![Website View 3](assets/website_view_3.png)
 ![Website View 4](assets/website_view_4.png)
 ![Website View 4.1](assets/website_view_4.1.png)
-![Website View 5](assets/website_view_5.png)
+![Website View 5.1](assets/website_view_5.1.png)
+![Website View 5.2](assets/website_view_5.2.png)
+![Website View 5.3](assets/website_view_5.3.png)
 
 ## Tech Stack
 - Python
