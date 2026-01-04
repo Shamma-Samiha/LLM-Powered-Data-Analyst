@@ -10,7 +10,15 @@ automatically analyzes the data, and generates human-readable insights using a l
 - FastAPI backend
 - Fully free & runs locally
 
-## Website View
+## Live Demo (EDA & visualizations only)
+https://llm-powered-data-analyst.streamlit.app/
+[👉 This cloud demo is intentionally limited to EDA and visualization to ensure:
+  - Free deployment
+  - Public accessibility
+  - Fast loading for reviewers]
+
+
+## Website View (Main Version)
 
 ![Website View 1](assets/website_view_1.png)
 ![Website View 2.0](assets/website_view_2.0.png)
