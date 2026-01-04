@@ -205,10 +205,9 @@ st.markdown("""
         flex: 1 1 0% !important;
         min-width: 0 !important;
         width: 0 !important;
-    }
-    
-    .chart-buttons-container [data-testid="column"] > div {
-        width: 100% !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
     }
     
     /* File uploader styling */
@@ -626,10 +625,10 @@ if st.session_state.df is not None:
         
         st.markdown("</div>", unsafe_allow_html=True)
         
-        # Chart type selection with luminous buttons
+        # Chart type selection with luminous buttons with luminous buttons
         chart_types = [
-            "📈 Line Chart", "📊 Area Chart", "🥧 Pie Chart",
-            "📉 Histogram", "📊 Box Plot", "🔍 Scatter Plot", "🔥 Correlation"
+            "Line Chart", "Area Chart", "Pie Chart",
+            "Histogram", "Box Plot", "Scatter Plot", "Correlation"
         ]
         
         st.markdown("""
@@ -719,6 +718,8 @@ if st.session_state.df is not None:
         }}
         </style>
         """, unsafe_allow_html=True)
+        
+
         
         # Display selected chart
         if st.session_state.selected_chart_type == "📈 Line Chart":
